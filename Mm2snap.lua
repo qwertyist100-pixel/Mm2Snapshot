@@ -117,7 +117,7 @@ CheckCorner.Parent = CheckBtn
 ------------------------------------------------------------------------
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.new(0, 260, 0, 340) -- Немного увеличили высоту под кнопки вкладок
+Main.Size = UDim2.new(0, 260, 0, 340)
 Main.Position = UDim2.new(0.1, 0, 0.3, 0)
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 Main.BackgroundTransparency = 0.35
@@ -246,7 +246,7 @@ Tab2Btn.MouseButton1Click:Connect(function()
 end)
 
 ------------------------------------------------------------------------
--- [ КНОПКА ТУГГЛА (КРАСИВАЯ, НАЖИМАЕМАЯ) ]
+-- [ КНОПКА ТУГГЛА ]
 ------------------------------------------------------------------------
 local ToggleBtn = Instance.new("TextButton")
 ToggleBtn.Name = "FantomToggle"
@@ -448,10 +448,10 @@ AddToggle("Аимбот на Шерифа", "Авто-наведение на К
 AddToggle("Аимбот на Мирных", "Авто-наведение на Жителей (для Убийцы)", ScrollContainer, function(state) Config.AimBot_Innocent = state end)
 
 -- ВКЛАДКА 2: Кнопка Авто-Сбора Монет
-AddToggle("Auto Collection", "Сбор монет телепортом по всей карте", ScrollContainer2, function(state) Config.AutoCollect = state end)
+AddToggle("Auto Collection", "Умный сбор монет по всей карте", ScrollContainer2, function(state) Config.AutoCollect = state end)
 
 ------------------------------------------------------------------------
--- [ СЕРВЕРНАЯ ЛОГИКА И АВТО-СБОР ]
+-- [ СЕРВЕРНАЯ ЛОГИКА И УМНЫЙ АВТО-СБОР ]
 ------------------------------------------------------------------------
 local function GetPlayerRole(player)
     if not player or not player:FindFirstChild("Backpack") then return "Innocent" end
@@ -483,10 +483,10 @@ local function CleanHighlight(player)
     end
 end
 
--- Логический поток для Auto Collect монет
+-- НАДЁЖНЫЙ ГЛОБАЛЬНЫЙ АВТОСБОР
 task.spawn(function()
     while true do
-        task.wait(0.2)
+        task.wait(0.1)
         if IsUnlocked and Config.AutoCollect then
             pcall(function()
                 local char = LocalPlayer.Character
@@ -494,15 +494,15 @@ task.spawn(function()
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
                 
                 if hrp and hum and hum.Health > 0 then
-                    -- Поиск контейнера с монетами на карте MM2
-                    local coinContainer = workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Coins")
-                    if coinContainer then
-                        local coinFolder = coinContainer:FindFirstChild("CoinContainer") or coinContainer
-                        for _, obj in pairs(coinFolder:GetChildren()) do
-                            if Config.AutoCollect and obj:IsA("BasePart") and obj.Name == "Coin_Server" then
-                                -- ТП к монете, небольшая задержка, чтобы подобралась
+                    -- Сканируем всю карту на наличие любых монет (даже если сменили папки)
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if Config.AutoCollect and obj:IsA("BasePart") then
+                            -- Проверяем монету по имени или по внутреннему триггеру (Coin_Server, CoinVisual, Coin)
+                            if obj.Name == "Coin_Server" or obj.Name == "CoinVisual" or (obj.Name == "Coin" and obj.Parent.Name == "CoinContainer") then
+                                -- Летим прямо к монете
                                 hrp.CFrame = obj.CFrame
-                                task.wait(0.18)
+                                task.wait(0.2) -- Задержка подбора для стабильности сервера
+                                if not Config.AutoCollect then break end
                             end
                         end
                     end
@@ -526,7 +526,7 @@ RunService.RenderStepped:Connect(function()
                 if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChildOfClass("Humanoid") and p.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
                     local role = GetPlayerRole(p)
                     
-if role == "Murder" then
+                    if role == "Murder" then
                         CurrentMurderPlayer = p
                         if Config.ESP_Murder then ApplyHighlight(p, Color3.fromRGB(231, 76, 60)) else CleanHighlight(p) end
                     elseif role == "Sheriff" then
